@@ -100,4 +100,5 @@ flowchart TD
 
 ## 前提
 - [Orca](https://github.com/stablyai/orca)、Claude Code、Codex CLI、GitHub CLI（`gh`）、Python 3、Bash
-- まだ確かめていないこと: 「Use this template」で作ったリポジトリでも `.agents/skills/` のシンボリックリンクが保たれるか。開発チームを Codex にした構成
+- `.agents/skills/` はシンボリックリンクとして GitHub に保存されている。Windows で clone した場合の扱いは確かめていない
+- まだ確かめていないこと: 開発チームを Codex にした構成
