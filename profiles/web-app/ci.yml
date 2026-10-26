@@ -1,4 +1,5 @@
 # 既定（Web アプリ）の CI の例。使うときは .github/workflows/ci.yml にコピーする。
+# Node の版は .nvmrc から読むので、アプリの雛形と一緒に .nvmrc を作っておく。
 # E2E やミューテーションを導入したら、ジョブを足す（重いジョブには timeout-minutes を付ける）。
 name: CI
 

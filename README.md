@@ -76,7 +76,7 @@ flowchart TD
 
 1. GitHub で「Use this template」から新しいリポジトリを作り、手元に clone する
 2. `CLAUDE.md` の `<…>` を埋める。「作るもの」と「開発設定」の表を、作るものに合わせて直す（Web アプリなら、ほぼそのまま）。終わったら `AGENTS.md` に同じ内容をコピーする
-3. Web アプリなら `profiles/web-app/ci.yml` を `.github/workflows/ci.yml` にコピーし、アプリの雛形を作る
+3. Web アプリなら `profiles/web-app/ci.yml` を `.github/workflows/ci.yml` にコピーし、アプリの雛形と `.nvmrc`（Node の版）を作る
 4. GitHub にラベルを作る: `gh label create 開発可` と `gh label create 着手中`。マージは squash を許可しておく
 5. Orca でリポジトリを開き、PO の端末を開く（[workflow.md「PO を開く」](docs/workflow.md#po-を開く)）。`dev-team.sh po-register` で登録する
 6. Orca の定期実行「開発チーム起動」を作る（[workflow.md「開発チームを開く」](docs/workflow.md#開発チームを開く起動係)）
