@@ -30,6 +30,10 @@ case "$1 $2" in
       esac
       shift 2
     done ;;
+  "api user") echo me ;;
+  "repo view")
+    case "$*" in *squashMergeAllowed*) cat "$FAKE/squash" 2>/dev/null ;; *) cat "$FAKE/repo" ;; esac ;;
+  "label list") cat "$FAKE/label_names" 2>/dev/null ;;
   *) echo "偽の gh が知らない呼び出し: $*" >&2; exit 1 ;;
 esac
 EOF
@@ -46,6 +50,7 @@ case "$1 $2" in
     if [ -f "$f" ]; then cat "$f"; [ -n "${FAKE_SHOW_RC:-}" ] && exit "$FAKE_SHOW_RC"; exit 0; fi
     echo '{"ok":false,"error":{"code":"terminal_handle_stale"}}'; exit 1 ;;
   "terminal wait") exit "${FAKE_WAIT_RC:-0}" ;;
+  "automations list") cat "$FAKE/automations.json" ;;
   "terminal close") echo "$4" >> "$FAKE/closed" ;;
   "terminal send")
     [ -n "${FAKE_SEND_FAIL:-}" ] && exit 1
@@ -54,7 +59,8 @@ case "$1 $2" in
   *) echo "偽の orca が知らない呼び出し: $*" >&2; exit 1 ;;
 esac
 EOF
-chmod +x "$work/bin/gh" "$work/bin/orca"
+printf '#!/bin/sh\n' > "$work/bin/claude"; printf '#!/bin/sh\n' > "$work/bin/codex"
+chmod +x "$work/bin/gh" "$work/bin/orca" "$work/bin/claude" "$work/bin/codex"
 
 connected='{"ok":true,"result":{"terminal":{"connected":true,"agentIdentity":"claude"}}}'
 
@@ -159,6 +165,55 @@ run mark 5 開発チーム "1. 事前確認"; run mark 5 PO 待ち
 check "mark: 1行ずつ時刻・担当・作業を追記する" test "$(cut -f2,3 "$FAKE/state/work-times/5.tsv" | tr '\t\n' ':;')" = "開発チーム:1. 事前確認;PO:待ち;"
 run mark 5 開発チーム; rc=$?
 check "mark: 作業が無ければ断る" test "$rc" -ne 0
+
+# doctor: 準備のそろった偽のリポジトリを作り、1か所ずつ崩して × になることを確かめる
+doctor_reset() {
+  reset "" ""
+  repo="$FAKE/repo-dir"
+  mkdir -p "$repo/.claude/skills/a" "$repo/.agents/skills" "$repo/.github/workflows"
+  git -C "$repo" init -q
+  printf '# 例\n| リポジトリ | `me/example` |\n例は `<Issue番号>` のように書く\n' > "$repo/CLAUDE.md"
+  cp "$repo/CLAUDE.md" "$repo/AGENTS.md"
+  echo x > "$repo/.claude/skills/a/SKILL.md"; ln -s ../../.claude/skills/a "$repo/.agents/skills/a"
+  echo x > "$repo/.github/workflows/ci.yml"
+  echo me/example > "$FAKE/repo"; echo true > "$FAKE/squash"; printf '開発可\n着手中\n' > "$FAKE/label_names"
+  echo term_po > "$FAKE/state/po.handle"; echo "$connected" > "$FAKE/show/term_po"
+  automation true "$(cd "$repo" && pwd -P)"
+}
+automation() {  # 引数: enabled（true / false） 作業場所のパス
+  printf '{"ok":true,"result":{"automations":[{"id":"A1","name":"開発チーム起動（example）","enabled":%s,"runContext":{"path":"%s"},"precheck":{"command":"bash .claude/skills/dual-implement/scripts/dev-team.sh precheck"}}]}}' \
+    "$1" "$2" > "$FAKE/automations.json"
+}
+doctor() { (cd "$repo" && run doctor); }
+has() { grep -q "$1" "$FAKE/out"; }
+ng_with() { [ "$rc" -eq 1 ] && has "$1"; }
+
+doctor_reset; doctor; rc=$?
+check "doctor: そろっていれば 0 で終わる（\`…\` の中の <…> は数えない）" test "$rc" -eq 0
+doctor_reset; printf '# <プロジェクト名>\n' >> "$repo/CLAUDE.md"; cp "$repo/CLAUDE.md" "$repo/AGENTS.md"; doctor; rc=$?
+check "doctor: <…> が残っていれば ×" ng_with "× CLAUDE.md の <…>"
+doctor_reset; echo y >> "$repo/AGENTS.md"; doctor; rc=$?
+check "doctor: AGENTS.md が違えば ×" ng_with "× AGENTS.md"
+doctor_reset; mkdir -p "$repo/.claude/skills/b"; echo x > "$repo/.claude/skills/b/SKILL.md"; doctor; rc=$?
+check "doctor: Codex 用のリンクが足りなければ ×" ng_with "足りない: b"
+doctor_reset; rm "$repo/.github/workflows/ci.yml"; doctor; rc=$?
+check "doctor: CI が無ければ ×" ng_with "× CI"
+doctor_reset; echo other/repo > "$FAKE/repo"; doctor; rc=$?
+check "doctor: 「開発設定」のリポジトリが違えば ×" ng_with "× 「開発設定」のリポジトリ"
+doctor_reset; echo 開発可 > "$FAKE/label_names"; doctor; rc=$?
+check "doctor: ラベルが無ければ ×" ng_with "× ラベル「着手中」"
+doctor_reset; echo false > "$FAKE/squash"; doctor; rc=$?
+check "doctor: squash が許可されていなければ ×" ng_with "× squash"
+doctor_reset; rm "$FAKE/state/po.handle"; doctor; rc=$?
+check "doctor: PO が登録されていなければ ×" ng_with "× PO が登録されている"
+doctor_reset; rm "$FAKE/show/term_po"; doctor; rc=$?
+check "doctor: PO の端末が閉じていれば ×" ng_with "× PO が登録されていて"
+doctor_reset; automation true /somewhere/else; doctor; rc=$?
+check "doctor: 別の作業場所の定期実行しか無ければ ×" ng_with "× 起動係の定期実行がある"
+doctor_reset; automation false "$(cd "$repo" && pwd -P)"; doctor; rc=$?
+check "doctor: 定期実行が無効なら ×（有効にするコマンドを出す）" ng_with "edit --id A1 --enabled"
+doctor_reset; echo 'not json' > "$FAKE/automations.json"; doctor; rc=$?
+check "doctor: Orca に照会できなければ △（× にはしない）" eval '[ "$rc" -eq 0 ] && has "△ 起動係"'
 
 echo
 [ "$fails" -eq 0 ] && echo "すべて成功" || { echo "失敗: ${fails} 件"; exit 1; }

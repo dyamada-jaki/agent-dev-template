@@ -14,6 +14,7 @@
 #   dev-team.sh mark <Issue番号> <担当> <作業>
 #                                           作業の区切りを記録する（ここから <作業> を始めた）。待つ間は「待ち」、終えたら「終了」。
 #                                           集計は work-times.py（finish-issue が Issue レポートに貼る）
+#   dev-team.sh doctor                      準備がそろっているかを項目ごとに確かめる。足りない項目があれば 1 で終わる（setup-project が使う）
 #
 # 端末の題名はエージェントが書き換えるので、端末は Git の管理外に置いた handle のファイルで見つける。
 # ファイルに書いた端末が閉じていれば、いないとみなす。
@@ -189,8 +190,98 @@ case "$cmd" in
     echo "$handle $agent_kind"
     ;;
 
+  doctor)
+    # 1項目ずつ ○ / ×（直し方つき）/ △（確かめられない・任意）を出す。× が1つでもあれば 1 で終わる
+    bad=0
+    ok()   { echo "○ $1"; }
+    ng()   { echo "× $1 → $2"; bad=$((bad + 1)); }
+    warn() { echo "△ $1 → $2"; }
+    root=$main_worktree
+
+    # ガイド: 埋めていない <…> が残っていないか（`…` の中の例は数えない）
+    left=$(sed 's/`[^`]*`//g' "$root/CLAUDE.md" 2>/dev/null | grep -noE '<[^<>]+>' | head -n 3 | tr '\n' ' ') || true
+    if [ ! -f "$root/CLAUDE.md" ]; then ng "CLAUDE.md がある" "テンプレートの CLAUDE.md を置く"
+    elif [ -n "$left" ]; then ng "CLAUDE.md の <…> を埋めた" "残り: ${left}（setup-project の手順2）"
+    else ok "CLAUDE.md の <…> を埋めた"; fi
+    if cmp -s "$root/CLAUDE.md" "$root/AGENTS.md"; then ok "AGENTS.md が CLAUDE.md と同じ"
+    else ng "AGENTS.md が CLAUDE.md と同じ" "cp CLAUDE.md AGENTS.md"; fi
+
+    # Codex 用のスキル: .claude/skills の各フォルダに、.agents/skills のリンクがある
+    missing=""
+    for d in "$root"/.claude/skills/*/; do
+      s=$(basename "$d")
+      [ -f "$root/.agents/skills/$s/SKILL.md" ] || missing="$missing $s"
+    done
+    if [ -z "$missing" ]; then ok "Codex 用のスキルのリンク（.agents/skills）"
+    else ng "Codex 用のスキルのリンク（.agents/skills）" "足りない:${missing}。ln -s ../../.claude/skills/<名前> .agents/skills/<名前>"; fi
+
+    if ls "$root"/.github/workflows/*.y*ml >/dev/null 2>&1; then ok "CI（.github/workflows）"
+    else ng "CI（.github/workflows）" "確認コマンドを回す CI を置く（Web アプリなら profiles/web-app/ci.yml をコピー）"; fi
+
+    # GitHub
+    if ! gh api user -q .login >/dev/null 2>&1; then
+      ng "GitHub にログインしている" "人間が gh auth login を実行する"
+    else
+      ok "GitHub にログインしている"
+      repo=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null) || repo=""
+      if [ -z "$repo" ]; then ng "GitHub のリポジトリが分かる" "git remote に GitHub のリポジトリを設定する"
+      elif grep -q "\`${repo}\`" "$root/CLAUDE.md" 2>/dev/null; then ok "「開発設定」のリポジトリが ${repo}"
+      else ng "「開発設定」のリポジトリが ${repo}" "CLAUDE.md と AGENTS.md の「リポジトリ」を \`${repo}\` にする"; fi
+      names=$(gh label list --limit 200 --json name -q '.[].name' 2>/dev/null) || names=""
+      for l in "$label_ready" "$label_busy"; do
+        if printf '%s\n' "$names" | grep -qx "$l"; then ok "ラベル「${l}」"
+        else ng "ラベル「${l}」" "gh label create ${l}"; fi
+      done
+      if [ "$(gh repo view --json squashMergeAllowed -q .squashMergeAllowed 2>/dev/null)" = true ]; then ok "squash でマージできる"
+      else ng "squash でマージできる" "gh repo edit --enable-squash-merge"; fi
+    fi
+
+    # エージェントの CLI
+    for c in claude codex; do
+      if command -v "$c" >/dev/null 2>&1; then ok "${c} の CLI がある"
+      else ng "${c} の CLI がある" "人間が ${c} を入れてログインする"; fi
+    done
+
+    # PO: 登録があり、その端末が開いている
+    if [ ! -f "$po_file" ]; then
+      ng "PO が登録されている" "PO にする端末（main の worktree）で dev-team.sh po-register"
+    else
+      handle=$(cat "$po_file"); status=0
+      alive "$handle" >/dev/null || status=$?
+      case "$status" in
+        0) ok "PO が登録されていて、端末が開いている（${handle}）" ;;
+        1) ng "PO が登録されていて、端末が開いている" "登録された端末 ${handle} は閉じている。PO にする端末で dev-team.sh po-register" ;;
+        *) warn "PO の端末が開いているか" "Orca に照会できなかった（Orca の中で実行し直す）" ;;
+      esac
+    fi
+
+    # 起動係: この main の worktree で dev-team.sh precheck を使う定期実行があり、有効になっている
+    autos=$("$orca_bin" automations list --json 2>/dev/null) || autos=""
+    launcher=$(printf '%s' "$autos" | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except ValueError:
+    print("unknown"); sys.exit()
+found = [a for a in (d.get("result") or {}).get("automations") or []
+         if (a.get("runContext") or {}).get("path") == sys.argv[1]
+         and "dev-team.sh precheck" in ((a.get("precheck") or {}).get("command") or "")]
+if not found: print("none")
+elif any(a.get("enabled") for a in found): print("enabled " + found[0].get("name", ""))
+else: print("disabled " + found[0].get("id", ""))' "$root")
+    case "$launcher" in
+      enabled*) ok "起動係の定期実行が有効（${launcher#enabled }）" ;;
+      disabled*) ng "起動係の定期実行が有効" "人間に確かめてから orca automations edit --id ${launcher#disabled } --enabled" ;;
+      none) ng "起動係の定期実行がある" "docs/workflow.md「開発チームを開く」の作り方で作る" ;;
+      *) warn "起動係の定期実行" "Orca に照会できなかった（Orca の中で実行し直す）" ;;
+    esac
+
+    echo
+    if [ "$bad" -eq 0 ]; then echo "準備はそろっています"; else echo "足りない項目: ${bad} 件"; exit 1; fi
+    ;;
+
   *)
-    sed -n '2,23p' "$0" >&2
+    sed -n '2,24p' "$0" >&2
     exit 2
     ;;
 esac

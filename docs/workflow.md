@@ -45,14 +45,14 @@
 
 ### 開発チームを開く（起動係）
 - PO か人間が、着手条件のそろった Issue に「開発可」を付ける
-- Orca の定期実行「開発チーム起動」が15分おきに `dev-team.sh precheck` で確かめる。「開発可」の Issue があり、「着手中」の Issue も動いている開発チームも無いときだけ、起動係のエージェントが `dev-team.sh launch` を実行する。条件に合わないときはエージェントを起動しないので、費用はかからない
+- Orca の定期実行「開発チーム起動（<リポジトリ名>）」が15分おきに `dev-team.sh precheck` で確かめる。「開発可」の Issue があり、「着手中」の Issue も動いている開発チームも無いときだけ、起動係のエージェントが `dev-team.sh launch` を実行する。条件に合わないときはエージェントを起動しないので、費用はかからない
 - launch は、番号のいちばん小さい「開発可」の Issue を「着手中」に替え、main の worktree に開発チームの端末（`claude --model opus --effort high`）を開いて `/dual-implement N` を送る。定期実行のセッションは応答のあと Orca が自動で閉じるが、開発チームは別の端末なので残る
 - 手で始めるときは、main の worktree の端末で `/dual-implement N` を打つ。dual-implement の最初に `dev-team.sh claim N` で登録される
 - 開発チームは同時に1つまで（なるべく並行しない）。finish-issue の最後の `dev-team.sh release N` で登録が外れ、次の「開発可」が拾われる。そのあと `dev-team.sh close-self` で開発チームが自分の端末を閉じる。結果は Issue レポートと Issue のコメントに残るので、端末が消えても読める
 
-定期実行は Orca の設定で Git に残らないので、作り方をここに控える。
+定期実行は Orca の設定で Git に残らないので、作り方をここに控える（`setup-project` もこの形で作る）。Orca の定期実行はプロジェクトをまたいで1つの一覧になるので、名前にリポジトリ名を入れて見分ける。作ったかどうかは `dev-team.sh doctor` で確かめられる。
 ```
-orca automations create --name "開発チーム起動" --trigger "*/15 * * * *" --disabled \
+orca automations create --name "開発チーム起動（<リポジトリ名>）" --trigger "*/15 * * * *" --disabled \
   --workspace path:<main の worktree の絶対パス> --workspace-mode existing --fresh-session \
   --provider claude --extra-agent-args="--model haiku" \
   --precheck "bash .claude/skills/dual-implement/scripts/dev-team.sh precheck" \
@@ -64,14 +64,17 @@ orca automations create --name "開発チーム起動" --trigger "*/15 * * * *" 
 
 ## 最初に1回だけやる準備
 
-### 準備1：PO の席を開く
-- [ ] Orca でこのリポジトリを開く（→「PO を開く」）
-- [ ] 仕様の元になる資料（設定資料・メモなど）があれば、参照先に追加する。資料は**読むだけ**にし、公開してはいけない部分があれば CLAUDE.md の「守ること」に書く
+### 準備1：準備スキルを回す
+- [ ] Orca でこのリポジトリを開き、main の worktree で端末を開く（→「PO を開く」）
+- [ ] 作りたいものを伝える（例: 「〇〇のようなスライドを、PowerPoint と PDF で作りたい」）。`CLAUDE.md` に `<…>` が残っているあいだは、エージェントが [`setup-project`](../.claude/skills/setup-project/SKILL.md) の手順で準備する（`/setup-project` や `$setup-project` で呼んでもよい）
+- [ ] 準備の最後に `dev-team.sh doctor` の結果が示される。× が人間に頼む項目だけになり、変えたファイルを確かめてから main にコミットさせる
 
-→ 資料を読みながら議論でき、`gh` で Issue も書ける。
+`setup-project` がすること: 作るものを決めて `CLAUDE.md`・`AGENTS.md`・`docs/testing.md` を埋める、制作の環境と CI を整える、ラベルと squash を設定する、この端末を PO に登録する、起動係の定期実行を作る。
+
+→ 制作の環境と開発プロセスの両方がそろい、この端末がそのまま PO になる。「エージェントの土台は人間が確かめてから置く」という線引きは、手順8の確認で守る。
 
 ### 準備2：仕様書の初版を作る
-- [ ] これまでの決定事項を `docs/spec.md` にまとめる
+- [ ] PO と議論しながら、決まったことを `docs/spec.md` にまとめる。仕様の元になる資料（デザインシステム・設定資料・メモなど）があれば、参照先に追加する。資料は**読むだけ**にし、公開してはいけない部分があれば CLAUDE.md の「守ること」に書く
 
 構成の例：
 
@@ -84,22 +87,7 @@ orca automations create --name "開発チーム起動" --trigger "*/15 * * * *" 
 6. 未決事項
 ```
 
-### 準備3：エージェント向けの2つのファイルを置く
-- [ ] `CLAUDE.md`：エージェントの常識（コマンド・フォルダ構成・守ること）。**短く保つ**
-- [ ] `AGENTS.md`：Codex用。`CLAUDE.md` と同じ内容
-- [ ] `.claude/skills/implement-issue/SKILL.md`：Issueを実装するときの手順書。中身は次の5手順
-  1. `gh issue view 番号` でIssueを読む
-  2. `docs/spec.md` の該当箇所を読む
-  3. 実装計画を出して、承認を待つ
-  4. 実装してテストを通す
-  5. テスト結果などの証拠を付けて、`Closes #番号` 入りのPRを作る
-
 > **注意**：リポジトリを公開するなら、公開してはいけない情報を spec.md・Issue・CLAUDE.md に書かない。このルールも `CLAUDE.md` の「守ること」に入れておく。
-
-### 準備4：mainにコミットする
-- [ ] ここまでは**人間が**mainにコミットする
-
-→ 「エージェントの土台は人間が置く」という線引き。
 
 ---
 

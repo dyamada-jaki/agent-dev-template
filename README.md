@@ -75,12 +75,15 @@ flowchart TD
 ## 始め方
 
 1. GitHub で「Use this template」から新しいリポジトリを作り、手元に clone する
-2. `CLAUDE.md` の `<…>` を埋める。「作るもの」と「開発設定」の表を、作るものに合わせて直す（Web アプリなら、ほぼそのまま）。終わったら `AGENTS.md` に同じ内容をコピーする
-3. Web アプリなら `profiles/web-app/ci.yml` を `.github/workflows/ci.yml` にコピーし、アプリの雛形と `.nvmrc`（Node の版）を作る
-4. GitHub にラベルを作る: `gh label create 開発可` と `gh label create 着手中`。マージは squash を許可しておく
-5. Orca でリポジトリを開き、PO の端末を開く（[workflow.md「PO を開く」](docs/workflow.md#po-を開く)）。`dev-team.sh po-register` で登録する
-6. Orca の定期実行「開発チーム起動」を作る（[workflow.md「開発チームを開く」](docs/workflow.md#開発チームを開く起動係)）
-7. PO と議論して `docs/spec.md` の初版を作り、最初の Issue を切って「開発可」を付ける
+2. Orca でリポジトリを開き、main の worktree で端末を開く（Claude Code なら `claude --model opus --effort high`。Codex なら Orca からエージェントとして起動する）
+3. 作りたいものを伝える。例: 「〇〇のようなスライドを、会社のデザインシステムで PowerPoint と PDF に出したい。セットアップして」
+
+あとはエージェントが準備スキル [`setup-project`](.claude/skills/setup-project/SKILL.md) の手順で進めます（`/setup-project`・`$setup-project` で呼んでもかまいません）。
+- **準備すること:** 作るものの決定（`CLAUDE.md`・`AGENTS.md`・`docs/testing.md` を埋める）、制作の環境、CI、ラベルと squash、この端末の PO 登録、起動係の定期実行
+- **確かめること:** 最後に `bash .claude/skills/dual-implement/scripts/dev-team.sh doctor` を実行し、項目ごとの ○ / × を見せます。人間がやること（ログインや有料アプリの導入など）、起動係を有効にしてよいか、変えたファイルを確かめたら、コミットさせます
+- **そのあと:** この端末がそのまま PO になり、`docs/spec.md` の初版づくりの議論に入ります
+
+あとで「開発チームが起動しない」などと思ったら、`dev-team.sh doctor` で何が足りないかを確かめられます。
 
 モデルの指定は `.claude/skills/dual-implement/SKILL.md` の「モデルの指定」と、[workflow.md](docs/workflow.md) のコーディネーターのモデルにあります。Codex の既定は `~/.codex/config.toml` で決まります。
 
@@ -89,7 +92,7 @@ flowchart TD
 | 場所 | 中身 |
 |---|---|
 | [CLAUDE.md](CLAUDE.md) / [AGENTS.md](AGENTS.md) | エージェント向けガイド。「作るもの」と「開発設定」の表がプロジェクトごとの値 |
-| `.claude/skills/` | 4つのスキル: `implement-issue`（1本実装）・`dual-implement`（開発チームの③〜⑥）・`accept-review`（PO の受け入れ確認）・`finish-issue`（⑦〜⑧）と補助スクリプト。`.agents/skills/` は Codex 用のシンボリックリンク |
+| `.claude/skills/` | 5つのスキル: `setup-project`（最初の準備）・`implement-issue`（1本実装）・`dual-implement`（開発チームの③〜⑥）・`accept-review`（PO の受け入れ確認）・`finish-issue`（⑦〜⑧）と補助スクリプト（準備の点検 `dev-team.sh doctor` を含む）。`.agents/skills/` は Codex 用のシンボリックリンク |
 | [docs/workflow.md](docs/workflow.md) | 開発の進め方（3つの席・8ステップ） |
 | [docs/testing.md](docs/testing.md) | テスト（確かめ方）とレビューの方針。作るものの種類ごとに書き換える |
 | [docs/spec.md](docs/spec.md) / [docs/next-issues.md](docs/next-issues.md) | 仕様と現在地の雛形（PO が書く） |
