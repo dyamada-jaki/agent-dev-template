@@ -14,7 +14,7 @@ allowed-tools: Bash(bash .claude/skills/finish-issue/scripts/finish.sh *), Bash(
 - このスキルの本体は `.claude/skills/finish-issue/`。Codex 用の `.agents/skills/finish-issue` はこのフォルダへのシンボリックリンクなので、直すのはここだけでよい
 - プロジェクト固有の値（リポジトリ・確認コマンド・ポート・画面確認の幅など）は、CLAUDE.md（Codex では AGENTS.md）の「開発設定」から読む。このスキルには直接書かない
 - 「開発設定」に無い項目や「なし」の項目（E2E・ミューテーション・開発サーバー・画面確認など）は、その手順を飛ばす。「テスト先行」が「しない」なら、テストを先に書く手順の代わりに `docs/testing.md` の確かめ方に従う
-- 人間が呼んだときだけ使う（Claude Code は `disable-model-invocation`、Codex は `agents/openai.yaml` で自動の呼び出しを止めている）。Claude Code ではこのスキルのターンは Sonnet で動く。Codex にはスキルごとのモデル指定がないので、コーディネーターのモデルのまま動く
+- 人間が呼んだときだけ使う（Claude Code は `disable-model-invocation`、Codex は `agents/openai.yaml` で自動の呼び出しを止めている）。Claude Code ではこのスキルのターンは、先頭の `model`・`effort`（「開発設定」の「後片付けのモデル」と同じ値にする）で動く。Codex にはスキルごとのモデル指定がないので、コーディネーターのモデルのまま動く
 - マージ・不採用 PR のクローズ・後片付けの機械的な操作は `bash .claude/skills/finish-issue/scripts/finish.sh <サブコマンド>` で行う（リポジトリのルートで実行）。判断と確認はこのスキルの手順で済ませてから呼ぶ。スクリプトが止まったら、無理に手で続けず人間に伝える
 - Orca は、同じセッションで動作確認した実行ファイルを使う。PATH 上の `orca` が使えない場合は、補助スクリプトの実行時だけ、その実行ファイルのディレクトリを PATH の先頭に置く
 - **作業時間を測る**: 手順を始めるたびに `bash .claude/skills/dual-implement/scripts/dev-team.sh mark N 開発チーム "<手順の番号と見出し>"` を実行する。人間の返事を待ち始めたら `待ち` を渡す（dual-implement と同じ）

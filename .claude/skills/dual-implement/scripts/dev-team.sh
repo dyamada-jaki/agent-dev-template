@@ -3,9 +3,9 @@
 # 値は CLAUDE.md / AGENTS.md の「開発設定」と合わせる。リポジトリのどの worktree で実行してもよい。
 #
 #   dev-team.sh precheck                    「開発可」の Issue があり、「着手中」も動いている開発チームも無ければ 0 で終わる
-#   dev-team.sh launch [--agent claude|codex]
-#                                           「開発可」で番号のいちばん小さい Issue を「着手中」に替え、
-#                                           main の worktree に開発チームの端末を開いて dual-implement を送る（起動係が使う）
+#   dev-team.sh launch                      「開発可」で番号のいちばん小さい Issue を「着手中」に替え、
+#                                           main の worktree に開発チームの端末を開いて dual-implement を送る（起動係が使う）。
+#                                           エージェント・モデル・effort は「開発設定」の「開発チームのモデル」の行から読む
 #   dev-team.sh claim <Issue番号>           この端末を Issue の開発チームとして登録する（dual-implement の最初に呼ぶ）
 #   dev-team.sh release <Issue番号>         開発チームを終える（「着手中」を外し、登録を消す）
 #   dev-team.sh close-self                  この端末を閉じる（finish-issue の最後の操作。release の後でないと断る）
@@ -79,6 +79,19 @@ teams() {
   alive "$handle" >/dev/null || status=$?
   if [ "$status" -eq 1 ]; then echo 0; else echo 1; fi
 }
+# 「開発設定」の「開発チームのモデル」の行の、最初の3つの `…`（エージェント モデル effort）を空白区切りで出す。
+# 行が無ければ何も出さない
+team_setting() {
+  grep -m 1 '^| 開発チームのモデル |' "$main_worktree/CLAUDE.md" 2>/dev/null \
+    | grep -oE '`[^`]+`' | head -n 3 | tr -d '`' | tr '\n' ' ' | sed 's/ $//' || true
+}
+# team_setting の値が使える形なら 0
+team_setting_ok() {
+  local a m e rest
+  read -r a m e rest <<<"$1"
+  case "$a" in claude|codex) ;; *) return 1 ;; esac
+  [ -n "$m" ] && [ -n "$e" ]
+}
 own_handle() { [ -n "${ORCA_TERMINAL_HANDLE:-}" ] || die "Orca の端末の中で実行する（ORCA_TERMINAL_HANDLE が無い）"; echo "$ORCA_TERMINAL_HANDLE"; }
 
 cmd=${1:-}
@@ -92,14 +105,16 @@ case "$cmd" in
     ;;
 
   launch)
-    agent=claude
-    [ "${1:-}" = "--agent" ] && agent=${2:?claude か codex}
+    setting=$(team_setting)
+    team_setting_ok "$setting" \
+      || die "「開発設定」の「開発チームのモデル」を読めない（今の値: ${setting:-行が無い}）。| 開発チームのモデル | \`claude\` / \`opus\` / \`high\` | の形で書く"
+    read -r agent model effort _ <<<"$setting"
     case "$agent" in
-      claude) default_command="claude --model opus --effort high"; default_prompt='/dual-implement {N}' ;;
-      codex)  default_command="codex"; default_prompt='$dual-implement {N}' ;;
-      *) die "--agent は claude か codex: $agent" ;;
+      # Claude Code は端末で起動し、入力を受け付けてから指示を送る
+      claude) default_prompt='/dual-implement {N}'; command=${DEV_TEAM_COMMAND:-"claude --model ${model} --effort ${effort}"} ;;
+      # Codex は Orca のエージェントとして起動する（素の codex は .git への書き込みと gh が制限される）。指示も起動と一緒に渡す
+      codex)  default_prompt='$dual-implement {N}'; command=${DEV_TEAM_COMMAND:-} ;;
     esac
-    command=${DEV_TEAM_COMMAND:-$default_command}
     prompt_template=${DEV_TEAM_PROMPT:-$default_prompt}
 
     # 定期実行の間に状況が変わっていることがあるので、もう一度確かめる
@@ -122,6 +137,22 @@ case "$cmd" in
 人間が端末の様子を確かめ、やり直すなら端末を閉じてから dev-team.sh release ${n} を実行し、「${label_ready}」を付け直す"
     }
 
+    prompt=${prompt_template//\{N\}/$n}
+    if [ -z "$command" ]; then
+      out=$("$orca_bin" agent launch --agent "$agent" --surface terminal --worktree "path:${main_worktree}" \
+        --model "$model" --effort "$effort" --prompt "$prompt" --json) \
+        || hold "エージェントを起動できたか確かめられなかった"
+      handle=$(printf '%s' "$out" | python3 -c '
+import json, sys
+o = (json.load(sys.stdin).get("result") or {}).get("outcome") or {}
+if o.get("kind") != "terminal" or not o.get("handle"): sys.exit(1)
+print(o["handle"])') || hold "エージェントの端末が分からなかった（Orca の返事: ${out}）"
+      echo "$n $handle" > "$team_file"
+      "$orca_bin" terminal rename --terminal "$handle" --title "開発チーム #${n}" --json >/dev/null 2>&1 || true
+      echo "開発チームを起動しました: Issue #${n} / ${agent}（${model}・${effort}）/ 端末 ${handle} / 指示「${prompt}」"
+      exit 0
+    fi
+
     handle=$("$orca_bin" terminal create --worktree "path:${main_worktree}" --title "開発チーム #${n}" \
       --command "$command" --json | python3 -c 'import json,sys;print(json.load(sys.stdin)["result"]["terminal"]["handle"])') \
       || hold "端末を開けたか確かめられなかった"
@@ -135,10 +166,9 @@ case "$cmd" in
     "$orca_bin" terminal wait --terminal "$handle" --for tui-idle --timeout-ms 120000 --json >/dev/null \
       || hold "エージェントが起動したか確かめられなかった（端末 ${handle}）"
 
-    prompt=${prompt_template//\{N\}/$n}
     "$orca_bin" terminal send --terminal "$handle" --text "$prompt" --enter --wait-submit 15 --json >/dev/null \
       || hold "指示が届いたか確かめられなかった（端末 ${handle}）"
-    echo "開発チームを起動しました: Issue #${n} / 端末 ${handle} / 指示「${prompt}」"
+    echo "開発チームを起動しました: Issue #${n} / ${agent}（${model}・${effort}）/ 端末 ${handle} / 指示「${prompt}」"
     ;;
 
   claim)
@@ -205,6 +235,9 @@ case "$cmd" in
     else ok "CLAUDE.md の <…> を埋めた"; fi
     if cmp -s "$root/CLAUDE.md" "$root/AGENTS.md"; then ok "AGENTS.md が CLAUDE.md と同じ"
     else ng "AGENTS.md が CLAUDE.md と同じ" "cp CLAUDE.md AGENTS.md"; fi
+    setting=$(team_setting)
+    if team_setting_ok "$setting"; then ok "「開発チームのモデル」が読める（${setting}）"
+    else ng "「開発チームのモデル」が読める" "「開発設定」に | 開発チームのモデル | \`claude\` / \`opus\` / \`high\` | の形で書く（エージェントは claude か codex）"; fi
 
     # Codex 用のスキル: .claude/skills の各フォルダに、.agents/skills のリンクがある
     missing=""

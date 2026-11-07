@@ -53,7 +53,13 @@ docs/
 | 記録 | `docs/next-issues.md`（現在地。PO だけが書く）/ `docs/issue-reports/`（Issue レポート。開発チームから PO への申し送りもここに書く） |
 | 席 | PO（Claude Code か Codex。開いたら `dev-team.sh po-register` で登録）/ 開発チーム（Issue ごとに開いて閉じる。`dev-team.sh claim` で登録）/ 開発者（dual-implement のワーカー）。役割は workflow.md「3つの席」 |
 | 着手のラベル | `開発可`（着手してよい。付けるのは PO か人間だけ）/ `着手中`（開発チームが動いている。同時に1つまで） |
-| 起動係 | Orca の定期実行 `開発チーム起動`。`.claude/skills/dual-implement/scripts/dev-team.sh` で確認と起動を行う |
+| 起動係 | Orca の定期実行 `開発チーム起動（リポジトリ名）`。`.claude/skills/dual-implement/scripts/dev-team.sh` で確認と起動を行う |
+| PO のモデル | Claude Code: `opus`・effort `high`（`claude --model opus --effort high` で起動）/ Codex: Orca からエージェントとして起動し、モデルは Orca で選ぶ |
+| 起動係のモデル | `haiku`（Claude Code。15分おきに確かめて起動するだけなので軽いモデル。定期実行の `--extra-agent-args` に使う） |
+| 開発チームのモデル | `claude` / `opus` / `high`（エージェント / モデル / effort の順。`dev-team.sh launch` がこの3つを読む。エージェントは claude か codex。codex は試験中で、例は `codex` / `gpt-6.1-sol` / `high`） |
+| 実装する開発者のモデル | Claude Code: 既定（`--model` を付けない。Opus・effort medium）/ Codex: `gpt-6.1-sol`・effort `xhigh` |
+| レビューのモデル | Claude Code: `opus`・effort `high` / Codex: `gpt-6.1-sol`・effort `high`（相互レビューと品質レビュー） |
+| 後片付けのモデル | `sonnet`・effort `medium`（Claude Code の開発チームのときだけ効く。`finish-issue/SKILL.md` の先頭の `model`・`effort` に書く。Codex の開発チームでは開発チームのモデルのまま動く） |
 | PO の差し戻し | 2回まで。3回目は人間に判断を仰ぐ |
 
 ## 守ること

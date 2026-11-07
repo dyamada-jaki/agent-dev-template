@@ -44,7 +44,13 @@ cat > "$work/bin/orca" <<'EOF'
 case "$1 $2" in
   "terminal create")
     [ -n "${FAKE_CREATE_FAIL:-}" ] && exit 1
+    for a in "$@"; do prev=${cur:-}; cur=$a; [ "$prev" = --command ] && echo "$a" >> "$FAKE/command"; done
     echo '{"ok":true,"result":{"terminal":{"handle":"term_new"}}}' ;;
+  "agent launch")
+    echo "$*" >> "$FAKE/agent_launch"
+    [ -n "${FAKE_AGENT_FAIL:-}" ] && exit 1
+    echo '{"ok":true,"result":{"outcome":{"kind":"terminal","handle":"term_codex"}}}' ;;
+  "terminal rename") echo "$*" >> "$FAKE/renamed" ;;
   "terminal show")
     f="$FAKE/show/$4"
     if [ -f "$f" ]; then cat "$f"; [ -n "${FAKE_SHOW_RC:-}" ] && exit "$FAKE_SHOW_RC"; exit 0; fi
@@ -70,11 +76,15 @@ reset() {
   rm -rf "$FAKE"; mkdir -p "$FAKE/labels" "$FAKE/show" "$FAKE/state"
   [ -n "$1" ] && echo "$1" > "$FAKE/labels/開発可"
   [ -n "$2" ] && echo "$2" > "$FAKE/labels/着手中"
-  unset FAKE_CREATE_FAIL FAKE_SEND_FAIL FAKE_GH_EDIT_FAIL FAKE_WAIT_RC FAKE_SHOW_RC
+  unset FAKE_CREATE_FAIL FAKE_SEND_FAIL FAKE_GH_EDIT_FAIL FAKE_WAIT_RC FAKE_SHOW_RC FAKE_AGENT_FAIL
+  # 偽のリポジトリ（main の worktree）。CLAUDE.md の「開発チームのモデル」を launch が読む
+  repo="$FAKE/repo-dir"; mkdir -p "$repo"; git -C "$repo" init -q
+  team_row '`claude` / `opus` / `high`'
 }
+team_row() { printf '| 開発チームのモデル | %s |\n' "$1" > "$repo/CLAUDE.md"; }
 run() {
-  DEV_TEAM_STATE_DIR="$FAKE/state" ORCA_CLI_BIN_DIR="$work/bin" PATH="$work/bin:$PATH" \
-    bash "$script" "$@" > "$FAKE/out" 2>&1
+  (cd "$repo" && DEV_TEAM_STATE_DIR="$FAKE/state" ORCA_CLI_BIN_DIR="$work/bin" PATH="$work/bin:$PATH" \
+    bash "$script" "$@" > "$FAKE/out" 2>&1)
 }
 lock() { cat "$FAKE/state/dev-team.lock" 2>/dev/null; }
 labels() { cat "$FAKE/labels/$1" 2>/dev/null | sed '/^$/d' | tr '\n' ' ' | sed 's/ $//'; }
@@ -89,6 +99,34 @@ check "起動できたら: 0 で終わる" test "$rc" -eq 0
 check "起動できたら: ラベルが「着手中」に替わる" test "$(labels 開発可)/$(labels 着手中)" = "/5"
 check "起動できたら: 端末の handle を登録する" test "$(lock)" = "5 term_new"
 check "起動できたら: dual-implement を送る" test "$(cat "$FAKE/sent")" = "/dual-implement 5"
+check "起動できたら: 「開発チームのモデル」のモデルと effort で Claude Code を起動する" test "$(cat "$FAKE/command")" = "claude --model opus --effort high"
+
+reset 5 ""
+team_row '`claude` / `sonnet` / `medium`（エージェント / モデル / effort）'
+run launch
+check "表のモデルを変えれば: そのモデルで起動する" test "$(cat "$FAKE/command" 2>/dev/null)" = "claude --model sonnet --effort medium"
+
+reset 5 ""
+team_row '`codex` / `gpt-6.1-sol` / `high`'
+run launch; rc=$?
+check "Codex なら: Orca のエージェントとして、モデル・effort・指示を渡して起動する" \
+  test "$rc-$(cat "$FAKE/agent_launch" 2>/dev/null)" = "0-agent launch --agent codex --surface terminal --worktree path:$(cd "$repo" && pwd -P) --model gpt-6.1-sol --effort high --prompt \$dual-implement 5 --json"
+check "Codex なら: その端末を登録し、端末を作り直したり指示を送り直したりしない" \
+  test "$(lock)-$(cat "$FAKE/command" "$FAKE/sent" 2>/dev/null)" = "5 term_codex-"
+check "Codex なら: 「着手中」に替える" test "$(labels 開発可)/$(labels 着手中)" = "/5"
+
+reset 5 ""
+team_row '`codex` / `gpt-6.1-sol` / `high`'
+FAKE_AGENT_FAIL=1 run launch; rc=$?
+check "Codex の起動を確かめられなければ: 「launching」の登録とラベルを残す" test "$rc-$(lock)-$(labels 着手中)" = "1-5 launching-5"
+
+reset 5 ""
+: > "$repo/CLAUDE.md"
+run launch; rc=$?
+check "「開発チームのモデル」が無ければ: 何も起動せず、ラベルも替えない" test "$rc-$(lock)-$(labels 開発可)-$(cat "$FAKE/command" 2>/dev/null)" = "1--5-"
+team_row '`gemini` / `x` / `y`'
+run launch; rc=$?
+check "エージェントが claude・codex 以外なら: 起動しない" test "$rc-$(labels 開発可)" = "1-5"
 
 reset 5 ""
 FAKE_SEND_FAIL=1 run launch; rc=$?
@@ -169,10 +207,8 @@ check "mark: 作業が無ければ断る" test "$rc" -ne 0
 # doctor: 準備のそろった偽のリポジトリを作り、1か所ずつ崩して × になることを確かめる
 doctor_reset() {
   reset "" ""
-  repo="$FAKE/repo-dir"
   mkdir -p "$repo/.claude/skills/a" "$repo/.agents/skills" "$repo/.github/workflows"
-  git -C "$repo" init -q
-  printf '# 例\n| リポジトリ | `me/example` |\n例は `<Issue番号>` のように書く\n' > "$repo/CLAUDE.md"
+  printf '# 例\n| リポジトリ | `me/example` |\n| 開発チームのモデル | `claude` / `opus` / `high` |\n例は `<Issue番号>` のように書く\n' > "$repo/CLAUDE.md"
   cp "$repo/CLAUDE.md" "$repo/AGENTS.md"
   echo x > "$repo/.claude/skills/a/SKILL.md"; ln -s ../../.claude/skills/a "$repo/.agents/skills/a"
   echo x > "$repo/.github/workflows/ci.yml"
@@ -184,7 +220,7 @@ automation() {  # 引数: enabled（true / false） 作業場所のパス
   printf '{"ok":true,"result":{"automations":[{"id":"A1","name":"開発チーム起動（example）","enabled":%s,"runContext":{"path":"%s"},"precheck":{"command":"bash .claude/skills/dual-implement/scripts/dev-team.sh precheck"}}]}}' \
     "$1" "$2" > "$FAKE/automations.json"
 }
-doctor() { (cd "$repo" && run doctor); }
+doctor() { run doctor; }
 has() { grep -q "$1" "$FAKE/out"; }
 ng_with() { [ "$rc" -eq 1 ] && has "$1"; }
 
@@ -192,6 +228,8 @@ doctor_reset; doctor; rc=$?
 check "doctor: そろっていれば 0 で終わる（\`…\` の中の <…> は数えない）" test "$rc" -eq 0
 doctor_reset; printf '# <プロジェクト名>\n' >> "$repo/CLAUDE.md"; cp "$repo/CLAUDE.md" "$repo/AGENTS.md"; doctor; rc=$?
 check "doctor: <…> が残っていれば ×" ng_with "× CLAUDE.md の <…>"
+doctor_reset; sed -i.bak 's/`opus`/opus/' "$repo/CLAUDE.md"; cp "$repo/CLAUDE.md" "$repo/AGENTS.md"; doctor; rc=$?
+check "doctor: 「開発チームのモデル」が読めなければ ×" ng_with "× 「開発チームのモデル」"
 doctor_reset; echo y >> "$repo/AGENTS.md"; doctor; rc=$?
 check "doctor: AGENTS.md が違えば ×" ng_with "× AGENTS.md"
 doctor_reset; mkdir -p "$repo/.claude/skills/b"; echo x > "$repo/.claude/skills/b/SKILL.md"; doctor; rc=$?

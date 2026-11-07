@@ -24,8 +24,9 @@ disable-model-invocation: true
 - 待つときは `orca orchestration check --wait --timeout-ms 60000` を繰り返す。時間切れは失敗ではない。進捗を伝えながら待ち続ける
 
 ## モデルの指定
-- **実装ワーカー**: Claude Code は `--model` を付けず、既定（Opus 5.5・effort medium）を使う。Codex は `--model gpt-6.1-sol --effort xhigh` を付ける（`~/.codex/config.toml` は Codex アプリや PO と共通なので、ワーカーでは明示する。モデルを変えるときはこの節と下のコマンドを直す）
-- **レビュー（相互・品質）**: Claude Code は `--model opus --effort high`、Codex は `--model gpt-6.1-sol --effort high` を付ける（両社とも、ロジックを追うレビューは high を勧めている）
+- モデルと effort は CLAUDE.md（AGENTS.md）の「開発設定」から読む。下のコマンドの `<実装の Codex のモデル>` などは、その表の値に置き換える。モデルを変えるときは表だけを直す
+  - **実装ワーカー**: 「実装する開発者のモデル」。「既定」と書かれたエージェントには `--model`・`--effort` を付けない。Codex は値を必ず明示する（`~/.codex/config.toml` は Codex アプリや PO と共通なので）
+  - **レビュー（相互・品質）**: 「レビューのモデル」（両社とも、ロジックを追うレビューは high を勧めている）
 - 人間が別のモデルや effort を指定したら、それに従う。Codex の `ultra` は使わない（自動で仕事を分けるため、コストが読めない）
 - `worker-start --json` の `launch.requested` と `launch.effective` を、ワーカーごとにそのまま控える。モデルと effort は項目ごとに確認し、effective が `null` や欠落なら「実行値は未確認」と記録する。明示指定せず既定を使った場合は「既定継承」と併記するが、設定値やコミットの署名で実行値を補完しない。別途実行値を観測できた場合は出所とともに区別して残し、エイリアスは具体的なモデル名へ推測で展開しない。明示的な要求と確認できた effective が食い違う場合は知らせる
 
@@ -53,10 +54,10 @@ Claude Code 用と Codex 用に、main から新しい worktree を作って起�
 ```
 orca orchestration worker-start --spec "<下の実装用の指示>" --task-title "#N 実装（Claude Code）" \
   --worktree new-top-level --repo path:<このリポジトリの絶対パス> --base-branch main \
-  --name issue-N-claude --agent claude --json
+  --name issue-N-claude --agent claude --json   # 表の値が「既定」でなければ --model <モデル> --effort <effort> を足す
 orca orchestration worker-start --spec "<下の実装用の指示>" --task-title "#N 実装（Codex）" \
   --worktree new-top-level --repo path:<このリポジトリの絶対パス> --base-branch main \
-  --name issue-N-codex --agent codex --model gpt-6.1-sol --effort xhigh --json
+  --name issue-N-codex --agent codex --model <実装の Codex のモデル> --effort <実装の Codex の effort> --json
 ```
 
 それぞれの `worker-start --json` の結果から、dispatch ID と worktree の絶対パス（`path`）を控えておく（手順6で使う）。見つからなければ `orca worktree list --json` で `issue-N-claude` / `issue-N-codex` を探す。
@@ -111,9 +112,9 @@ orca orchestration worker-start --spec "<下の実装用の指示>" --task-title
 
 ```
 orca orchestration worker-start --spec "<下のレビュー用の指示>" --task-title "#N レビュー（Claude Code → Codex の PR）" \
-  --worktree path:<issue-N-codex の worktree の絶対パス> --agent claude --model opus --effort high --json
+  --worktree path:<issue-N-codex の worktree の絶対パス> --agent claude --model <レビューの Claude Code のモデル> --effort <その effort> --json
 orca orchestration worker-start --spec "<下のレビュー用の指示>" --task-title "#N レビュー（Codex → Claude Code の PR）" \
-  --worktree path:<issue-N-claude の worktree の絶対パス> --agent codex --model gpt-6.1-sol --effort high --json
+  --worktree path:<issue-N-claude の worktree の絶対パス> --agent codex --model <レビューの Codex のモデル> --effort <その effort> --json
 ```
 
 ### 相互レビュー用の指示（`--spec` に入れる）
@@ -144,7 +145,7 @@ PR ごとに新しいセッションと専用 worktree を作り、空き枠の�
 ```
 orca orchestration worker-start --spec "<下の品質レビュー用の指示>" --task-title "#N 品質レビュー（PR #<P>）" \
   --worktree new-top-level --repo path:<このリポジトリの絶対パス> --base-branch <対象 PR の headRefName> \
-  --name issue-N-quality-pr-P --setup skip --agent <claude|codex> --model <opus|gpt-6.1-sol> --effort high --json
+  --name issue-N-quality-pr-P --setup skip --agent <claude|codex> --model <レビューのそのエージェントのモデル> --effort <その effort> --json
 ```
 
 - Claude Code の実装 PR は新しい Claude Code セッション、Codex の実装 PR は新しい Codex セッションで品質レビューする。既存の相互レビューは相手側のエージェントが担当する
@@ -204,7 +205,7 @@ orca orchestration worker-start --spec "<下の品質レビュー用の指示>" 
    - **受け入れ**: 手順9へ
    - **人間の判断が必要**: 手順9へ。PO が挙げた判断事項を、そのまま人間に見せる
    - **差し戻し**: 指摘ごとに、差分・仕様・Issue で裏を取る
-     - 直すべき指摘は、PR の作者と同じエージェントで修正ワーカーを、その PR の worktree に起動して直させる（`worker-start --worktree path:<その PR の worktree> --agent <claude|codex>`。モデルは「モデルの指定」の実装ワーカーと同じで、Codex には `--model gpt-6.1-sol --effort xhigh` を付ける）。指示には、直す点と根拠、振る舞いを変える修正はテストを先に書くこと、同じブランチに push すること、worker_done に新しい head SHA を書くことを含める。新しい SHA で確認コマンド・対象の E2E・対象のミューテーションを手元で通したか、直したのが `.md` のファイルだけ（前に CI が成功した SHA からの `git diff --name-only` が `.md` だけ）なら、push したら CI の終わりを待たずに worker_done を送ることも含める（重い CI を待つと、直すたびに待ち時間が積み重なるため）
+     - 直すべき指摘は、PR の作者と同じエージェントで修正ワーカーを、その PR の worktree に起動して直させる（`worker-start --worktree path:<その PR の worktree> --agent <claude|codex>`。モデルは「モデルの指定」の実装ワーカーと同じで、Codex には「実装する開発者のモデル」の値を `--model`・`--effort` で付ける）。指示には、直す点と根拠、振る舞いを変える修正はテストを先に書くこと、同じブランチに push すること、worker_done に新しい head SHA を書くことを含める。新しい SHA で確認コマンド・対象の E2E・対象のミューテーションを手元で通したか、直したのが `.md` のファイルだけ（前に CI が成功した SHA からの `git diff --name-only` が `.md` だけ）なら、push したら CI の終わりを待たずに worker_done を送ることも含める（重い CI を待つと、直すたびに待ち時間が積み重なるため）
      - 修正後は、手順6.2の相互レビューの担当で、新しい SHA の更新差分と影響範囲を再確認させる。推薦コメントを新しい SHA で更新し、2. に戻って PO に再確認を送る
      - 開発チームとして同意できない指摘は直さない。両者の見解を並べ、手順9で人間に判断を仰ぐ
      - 差し戻しは2回まで（「開発設定」の「PO の差し戻し」）。3回目の差し戻しになったら、直さずに手順9で人間に判断を仰ぐ

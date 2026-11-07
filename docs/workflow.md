@@ -30,11 +30,11 @@
 - PO → 開発チーム: `orca orchestration send --to run:<Run ID> --type handoff` で判定を返す
 - 差し戻しは2回まで。3回目は人間に判断を仰ぐ
 - ふりかえりで出た spec.md と Issue の案、next-issues.md の「現在地」に載せる内容: 開発チームが Issue レポートの「PO への申し送り」に書き、Issue にコメントして PO に一言送る。PO が next-issues.md・spec.md・Issue に反映する
-- PO は Claude Code でも Codex でも動く。開発チームを Codex にする構成は、まだ確かめていない
+- PO は Claude Code でも Codex でも動く。開発チームも「開発設定」の「開発チームのモデル」で Codex を選べるが、その構成はまだ試験中（Claude Code では確かめ済み）
 
 ### PO を開く
 - 新しい worktree は作らない。Orca で main の worktree（リポジトリの元のフォルダ）を選び、ターミナルを開く
-- Claude Code なら `claude --model opus --effort high` で起動する。Codex なら Orca からエージェントとして起動する（素の `codex` は `.git` への書き込みとネットワークが制限され、PO の登録や `gh` が失敗する）
+- モデルは「開発設定」の「PO のモデル」に従う。Claude Code なら `claude --model <モデル> --effort <effort>`（既定は `claude --model opus --effort high`）で起動する。Codex なら Orca からエージェントとして起動する（素の `codex` は `.git` への書き込みとネットワークが制限され、PO の登録や `gh` が失敗する）
 - 最初に次を実行させ、3つとも通ることを確かめる。2つ目は、この端末を PO として登録する（開発チームはこれで PO を見つける）。開き直したら、そのたびに登録し直す
   ```
   gh api user -q .login
@@ -46,7 +46,7 @@
 ### 開発チームを開く（起動係）
 - PO か人間が、着手条件のそろった Issue に「開発可」を付ける
 - Orca の定期実行「開発チーム起動（<リポジトリ名>）」が15分おきに `dev-team.sh precheck` で確かめる。「開発可」の Issue があり、「着手中」の Issue も動いている開発チームも無いときだけ、起動係のエージェントが `dev-team.sh launch` を実行する。条件に合わないときはエージェントを起動しないので、費用はかからない
-- launch は、番号のいちばん小さい「開発可」の Issue を「着手中」に替え、main の worktree に開発チームの端末（`claude --model opus --effort high`）を開いて `/dual-implement N` を送る。定期実行のセッションは応答のあと Orca が自動で閉じるが、開発チームは別の端末なので残る
+- launch は、番号のいちばん小さい「開発可」の Issue を「着手中」に替え、main の worktree に開発チームの端末を開いて dual-implement を送る。エージェント・モデル・effort は「開発設定」の「開発チームのモデル」から読む（Claude Code なら `claude --model … --effort …` の端末に `/dual-implement N` を送る。Codex なら Orca のエージェントとして `$dual-implement N` を渡して起動する）。定期実行のセッションは応答のあと Orca が自動で閉じるが、開発チームは別の端末なので残る
 - 手で始めるときは、main の worktree の端末で `/dual-implement N` を打つ。dual-implement の最初に `dev-team.sh claim N` で登録される
 - 開発チームは同時に1つまで（なるべく並行しない）。finish-issue の最後の `dev-team.sh release N` で登録が外れ、次の「開発可」が拾われる。そのあと `dev-team.sh close-self` で開発チームが自分の端末を閉じる。結果は Issue レポートと Issue のコメントに残るので、端末が消えても読める
 
@@ -54,7 +54,7 @@
 ```
 orca automations create --name "開発チーム起動（<リポジトリ名>）" --trigger "*/15 * * * *" --disabled \
   --workspace path:<main の worktree の絶対パス> --workspace-mode existing --fresh-session \
-  --provider claude --extra-agent-args="--model haiku" \
+  --provider claude --extra-agent-args="--model <「起動係のモデル」。既定は haiku>" \
   --precheck "bash .claude/skills/dual-implement/scripts/dev-team.sh precheck" \
   --prompt "起動係です。ファイルは変更しないでください。bash .claude/skills/dual-implement/scripts/dev-team.sh launch を1回だけ実行し、出力をそのまま報告して終わってください。"
 ```
@@ -212,7 +212,7 @@ Orcaで差分を見る。エージェントのコードレビューでは、Issu
 - コーディネーターが両レビューの指摘を裏付け、重複と誤検出を整理する。品質レビューを加えたときは、有効な独自指摘・誤検出・所要時間を Issue レポートに残し、続けるかを判断する材料にする
 - ③〜⑥をまとめて回すスキルがある：Orcaのターミナル（mainのworktree）で `/dual-implement 番号`（Codexなら `$dual-implement 番号`。自動では呼ばれないので、名前を付けて呼ぶ）。途中で止まるのは④の計画承認と、最後の報告の2回だけ。マージ（⑦）は人間がする
   - 推薦する PR が決まると、開発チームが PO に受け入れの一次判断を頼む（`accept-review`）。PO はコードではなく、受け入れ条件・仕様・スコープ・使う人から見た振る舞いを見て、PR にコメントする。差し戻しなら開発チームが直して再確認し、受け入れか人間の判断が必要になった時点で人間に報告が来る
-  - コーディネーターのモデル：Claude Code は `claude --model opus --effort high` で起動する。Codex は既定（`~/.codex/config.toml` のモデル）のまま起動する。ワーカーのモデルは dual-implement の「モデルの指定」に従う
+  - コーディネーターのモデル：「開発設定」の「開発チームのモデル」に従う（起動係は `dev-team.sh launch` がそこから読む）。ワーカーのモデルは「実装する開発者のモデル」「レビューのモデル」に従う
 
 ### ステップ7：マージ【開発チーム】
 - [ ] PRをmainにマージする（`Closes #12` の効果でIssueが自動で閉じる）

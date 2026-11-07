@@ -75,7 +75,7 @@ flowchart TD
 ## 始め方
 
 1. GitHub で「Use this template」から新しいリポジトリを作り、手元に clone する
-2. Orca でリポジトリを開き、main の worktree で端末を開く（Claude Code なら `claude --model opus --effort high`。Codex なら Orca からエージェントとして起動する）
+2. Orca でリポジトリを開き、main の worktree で端末を開く（Claude Code なら `claude --model opus --effort high`。Codex なら Orca からエージェントとして起動する）。準備の途中で、セッションごとに使うモデルも聞かれる
 3. 作りたいものを伝える。例: 「〇〇のようなスライドを、会社のデザインシステムで PowerPoint と PDF に出したい。セットアップして」
 
 あとはエージェントが準備スキル [`setup-project`](.claude/skills/setup-project/SKILL.md) の手順で進めます（`/setup-project`・`$setup-project` で呼んでもかまいません）。
@@ -85,7 +85,7 @@ flowchart TD
 
 あとで「開発チームが起動しない」などと思ったら、`dev-team.sh doctor` で何が足りないかを確かめられます。
 
-モデルの指定は `.claude/skills/dual-implement/SKILL.md` の「モデルの指定」と、[workflow.md](docs/workflow.md) のコーディネーターのモデルにあります。Codex の既定は `~/.codex/config.toml` で決まります。
+セッションごとのモデル（PO・起動係・開発チーム・実装する開発者・レビュー・後片付け）は、CLAUDE.md の「開発設定」の表にまとめてあります。準備のときに選び、あとで変えるときも表を直します。開発チームは Claude Code か Codex を選べます（Codex は試験中）。Codex の既定のモデルは `~/.codex/config.toml` で決まります。
 
 ## 中身
 

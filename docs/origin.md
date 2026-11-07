@@ -19,4 +19,5 @@
 - `.claude/skills/setup-project/`（準備スキル）と `.agents/skills/setup-project`（そのリンク）
 - `dev-team.sh doctor`（準備の点検）と、`dev-team.test.sh` の doctor のテスト
 - CLAUDE.md・AGENTS.md の「準備がまだなら、まず準備する。」の案内
+- CLAUDE.md・AGENTS.md の「開発設定」の「〜のモデル」の行と、それを読む書き方（dual-implement の「モデルの指定」、`dev-team.sh launch` が「開発チームのモデル」を読み Codex なら `orca agent launch` で起動する処理とそのテスト、doctor の「開発チームのモデル」の点検）
 - README の「始め方」、`docs/workflow.md` の「最初に1回だけやる準備」の準備スキルを使う書き方と、起動係の名前に付けるリポジトリ名
