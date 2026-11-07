@@ -21,3 +21,4 @@
 - CLAUDE.md・AGENTS.md の「準備がまだなら、まず準備する。」の案内
 - CLAUDE.md・AGENTS.md の「開発設定」の「〜のモデル」の行と、それを読む書き方（dual-implement の「モデルの指定」、`dev-team.sh launch` が「開発チームのモデル」を読み Codex なら `orca agent launch` で起動する処理とそのテスト、doctor の「開発チームのモデル」の点検）
 - README の「始め方」、`docs/workflow.md` の「最初に1回だけやる準備」の準備スキルを使う書き方と、起動係の名前に付けるリポジトリ名
+- implement-issue 手順5の「PR を作る前に見直す」と、CLAUDE.md「守ること」10 の文章の決まり（2026-11-08。Codex 案で繰り返し出た抜けを減らすため）

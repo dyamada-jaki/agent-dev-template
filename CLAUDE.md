@@ -57,7 +57,7 @@ docs/
 | PO のモデル | Claude Code: `opus`・effort `high`（`claude --model opus --effort high` で起動）/ Codex: Orca からエージェントとして起動し、モデルは Orca で選ぶ |
 | 起動係のモデル | `haiku`（Claude Code。15分おきに確かめて起動するだけなので軽いモデル。定期実行の `--extra-agent-args` に使う） |
 | 開発チームのモデル | `claude` / `opus` / `high`（エージェント / モデル / effort の順。`dev-team.sh launch` がこの3つを読む。エージェントは claude か codex。codex は試験中で、例は `codex` / `gpt-6.1-sol` / `high`） |
-| 実装する開発者のモデル | Claude Code: 既定（`--model` を付けない。Opus・effort medium）/ Codex: `gpt-6.1-sol`・effort `xhigh` |
+| 実装する開発者のモデル | Claude Code: 既定（`--model` を付けない。Opus・effort medium）/ Codex: `gpt-6.1-sol`・effort `high`（2026-11-08 に xhigh から下げて試験中。OpenAI は xhigh を特に難しい作業だけに勧めている） |
 | レビューのモデル | Claude Code: `opus`・effort `high` / Codex: `gpt-6.1-sol`・effort `high`（相互レビューと品質レビュー） |
 | 後片付けのモデル | `sonnet`・effort `medium`（Claude Code の開発チームのときだけ効く。`finish-issue/SKILL.md` の先頭の `model`・`effort` に書く。Codex の開発チームでは開発チームのモデルのまま動く） |
 | PO の差し戻し | 2回まで。3回目は人間に判断を仰ぐ |
@@ -72,6 +72,10 @@ docs/
 7. Issue の「スコープ外」に書かれたことはやらない。必要だと思ったら PR 本文で提案する
 8. spec.md や Issue に書かれていないルールを推測で作らない。不明点は計画の段階で質問するか、PR 本文に「確認したいこと」として書く。採用の ADR（`docs/decisions/`）と違う作り方をするときも、計画の段階でそう書いて理由を示す
 9. 公開してはいけない情報（認証情報、環境変数の秘密の値、<プロジェクト固有の非公開の資料>）を、コード・Issue・PR・ドキュメントに書かない
+10. **文章の決まり**（文書・画面の文言・PR 本文）
+   - 前提を知らない読み手に向けて書く。用語・略語・このプロジェクト独自の呼び名（役割名・ラベル名など）は、本文で初めて出るところで短く説明する。ノートや注だけに回さない
+   - 何であるか・何をするかを、肯定の形で書く。「…ではありません」「…とは扱いません」のような、規則の文をそのまま写した否定の言い回しで説明しない
+   - 日本語で言えることは日本語で書く。英字の用語を使うときは、初めて出るところで説明する（コード上の名前・コマンドはそのまま書いてよい）
 
 ## Issue の実装手順
 `.claude/skills/implement-issue/SKILL.md`（Codex 用の `.agents/skills/implement-issue` は、このフォルダへのシンボリックリンク）に従う。Claude Code では `/implement-issue 番号`、Codex では「implement-issue スキルで Issue 番号」。
