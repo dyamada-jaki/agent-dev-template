@@ -109,10 +109,16 @@ check "表のモデルを変えれば: そのモデルで起動する" test "$(c
 reset 5 ""
 team_row '`codex` / `gpt-6.1-sol` / `high`'
 run launch; rc=$?
-check "Codex なら: Orca のエージェントとして、モデル・effort・指示を渡して起動する" \
-  test "$rc-$(cat "$FAKE/agent_launch" 2>/dev/null)" = "0-agent launch --agent codex --surface terminal --worktree path:$(cd "$repo" && pwd -P) --model gpt-6.1-sol --effort high --prompt \$dual-implement 5 --json"
-check "Codex なら: その端末を登録し、端末を作り直したり指示を送り直したりしない" \
-  test "$(lock)-$(cat "$FAKE/command" "$FAKE/sent" 2>/dev/null)" = "5 term_codex-"
+check "Codex なら: Orca のエージェントとして、モデルと effort を渡して起動する" \
+  test "$rc-$(cat "$FAKE/agent_launch" 2>/dev/null)" = "0-agent launch --agent codex --surface terminal --worktree path:$(cd "$repo" && pwd -P) --model gpt-6.1-sol --effort high --json"
+check "Codex なら: その端末を登録し、入力を受け付けてから \$dual-implement を送る" \
+  test "$(lock)-$(cat "$FAKE/sent" 2>/dev/null)-$(cat "$FAKE/command" 2>/dev/null)" = "5 term_codex-\$dual-implement 5-"
+
+reset 5 ""
+team_row '`codex` / `gpt-6.1-sol` / `high`'
+FAKE_WAIT_RC=1 run launch; rc=$?
+check "Codex が入力を受け付けたか確かめられなければ: 指示を送らず、登録とラベルを残す" \
+  test "$rc-$(lock)-$(labels 着手中)-$(cat "$FAKE/sent" 2>/dev/null)" = "1-5 term_codex-5-"
 check "Codex なら: 「着手中」に替える" test "$(labels 開発可)/$(labels 着手中)" = "/5"
 
 reset 5 ""

@@ -112,7 +112,7 @@ case "$cmd" in
     case "$agent" in
       # Claude Code は端末で起動し、入力を受け付けてから指示を送る
       claude) default_prompt='/dual-implement {N}'; command=${DEV_TEAM_COMMAND:-"claude --model ${model} --effort ${effort}"} ;;
-      # Codex は Orca のエージェントとして起動する（素の codex は .git への書き込みと gh が制限される）。指示も起動と一緒に渡す
+      # Codex は Orca のエージェントとして起動する（素の codex は .git への書き込みと gh が制限される）
       codex)  default_prompt='$dual-implement {N}'; command=${DEV_TEAM_COMMAND:-} ;;
     esac
     prompt_template=${DEV_TEAM_PROMPT:-$default_prompt}
@@ -139,8 +139,9 @@ case "$cmd" in
 
     prompt=${prompt_template//\{N\}/$n}
     if [ -z "$command" ]; then
+      # Orca のエージェントとして起動する。指示は Claude Code と同じく、入力を受け付けてから送って届いたかを確かめる
       out=$("$orca_bin" agent launch --agent "$agent" --surface terminal --worktree "path:${main_worktree}" \
-        --model "$model" --effort "$effort" --prompt "$prompt" --json) \
+        --model "$model" --effort "$effort" --json) \
         || hold "エージェントを起動できたか確かめられなかった"
       handle=$(printf '%s' "$out" | python3 -c '
 import json, sys
@@ -149,14 +150,12 @@ if o.get("kind") != "terminal" or not o.get("handle"): sys.exit(1)
 print(o["handle"])') || hold "エージェントの端末が分からなかった（Orca の返事: ${out}）"
       echo "$n $handle" > "$team_file"
       "$orca_bin" terminal rename --terminal "$handle" --title "開発チーム #${n}" --json >/dev/null 2>&1 || true
-      echo "開発チームを起動しました: Issue #${n} / ${agent}（${model}・${effort}）/ 端末 ${handle} / 指示「${prompt}」"
-      exit 0
+    else
+      handle=$("$orca_bin" terminal create --worktree "path:${main_worktree}" --title "開発チーム #${n}" \
+        --command "$command" --json | python3 -c 'import json,sys;print(json.load(sys.stdin)["result"]["terminal"]["handle"])') \
+        || hold "端末を開けたか確かめられなかった"
+      echo "$n $handle" > "$team_file"
     fi
-
-    handle=$("$orca_bin" terminal create --worktree "path:${main_worktree}" --title "開発チーム #${n}" \
-      --command "$command" --json | python3 -c 'import json,sys;print(json.load(sys.stdin)["result"]["terminal"]["handle"])') \
-      || hold "端末を開けたか確かめられなかった"
-    echo "$n $handle" > "$team_file"
 
     # エージェントが入力を受け付けるまで待つ（シェルの段階で送ると、指示がシェルに渡ってしまう）
     for _ in $(seq 1 60); do
