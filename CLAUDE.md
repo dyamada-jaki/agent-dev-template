@@ -44,7 +44,7 @@ docs/
 | テスト先行 | する（機能追加・振る舞いの変更では、テストを先に書いて失敗を確かめてから作る。→ testing.md 1章） |
 | E2E | なし（導入したらコマンドを書く） |
 | ミューテーション | なし（導入したらコマンドと対象を書く） |
-| 開発サーバー | `npm run dev`（Docker を使うなら `docker compose up -d`。worktree ごとに `.env` の `HOST_PORT` と `COMPOSE_PROJECT_NAME` で分ける） |
+| 開発サーバー | `npm run dev -- --port <ポート> --strictPort`（ポートは worktree ごとに下の「ポート」から選び、`.env` の `HOST_PORT` に控える。`--strictPort` は、番号が使われていたら別の番号にずらさずに止める指定。Docker を使うなら `docker compose up -d` にし、`.env` の `HOST_PORT` と `COMPOSE_PROJECT_NAME` で分ける） |
 | ポート | main: `5173` / 実装（Claude Code）: `5181` / 実装（Codex）: `5182` / 品質レビュー: `5183`・`5184` |
 | 画面確認の幅 | スマホ縦 `375px`（Orca のブラウザで端末を指定）と PC 幅 |
 | マージ方式 | squash（`finish-issue/scripts/finish.sh` で固定） |
