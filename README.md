@@ -94,6 +94,7 @@ flowchart TD
 | [CLAUDE.md](CLAUDE.md) / [AGENTS.md](AGENTS.md) | エージェント向けガイド。「作るもの」と「開発設定」の表がプロジェクトごとの値 |
 | `.claude/skills/` | 5つのスキル: `setup-project`（最初の準備）・`implement-issue`（1本実装）・`dual-implement`（開発チームの③〜⑥）・`accept-review`（PO の受け入れ確認）・`finish-issue`（⑦〜⑧）と補助スクリプト（準備の点検 `dev-team.sh doctor` を含む）。`.agents/skills/` は Codex 用のシンボリックリンク |
 | [docs/workflow.md](docs/workflow.md) | 開発の進め方（3つの席・8ステップ） |
+| [docs/definition-of-done.md](docs/definition-of-done.md) | 完了の定義。開発者が「終わった」と判断する、すべての Issue に共通の基準 |
 | [docs/testing.md](docs/testing.md) | テスト（確かめ方）とレビューの方針。作るものの種類ごとに書き換える |
 | [docs/spec.md](docs/spec.md) / [docs/next-issues.md](docs/next-issues.md) | 仕様と現在地の雛形（PO が書く） |
 | [docs/decisions/](docs/decisions/README.md) | 技術判断の記録（ADR）の書き方と雛形 |

@@ -85,9 +85,7 @@ PO（人間と仕様を話し合い、Issue を書く席。→ [docs/workflow.md
 `.claude/skills/implement-issue/SKILL.md`（Codex 用の `.agents/skills/implement-issue` は、このフォルダへのシンボリックリンク）に従う。Claude Code では `/implement-issue 番号`、Codex では「implement-issue スキルで Issue 番号」。
 
 ## 完了の定義
-- Issue の受け入れ条件をすべて満たす
-- 「開発設定」の確認コマンドがすべて通る。E2E・ミューテーションは、導入済みで対象となる場合に通す
-- PR 本文に「何をしたか」「どう確認したか」「確認したいこと」を書く
+開発者が「Issue の作業は終わった」と判断する基準は [docs/definition-of-done.md](docs/definition-of-done.md)。PR を作るときに1項目ずつ確かめる。
 
 ## 用語
 | 日本語 | コード上の名前 |
