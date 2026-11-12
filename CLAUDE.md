@@ -55,7 +55,7 @@ docs/
 | 着手のラベル | `開発可`（着手してよい。付けるのは PO か人間だけ）/ `着手中`（開発チームが動いている。同時に1つまで） |
 | 起動係 | Orca の定期実行 `開発チーム起動（リポジトリ名）`。`.claude/skills/dual-implement/scripts/dev-team.sh` で確認と起動を行う |
 | PO のモデル | Claude Code: `opus`・effort `high`（`claude --model opus --effort high` で起動）/ Codex: Orca からエージェントとして起動し、モデルは Orca で選ぶ |
-| 起動係のモデル | `haiku`（Claude Code。15分おきに確かめて起動するだけなので軽いモデル。定期実行の `--extra-agent-args` に使う） |
+| 起動係のモデル | `haiku`（Claude Code。5分おきに確かめて起動するだけなので軽いモデル。定期実行の `--extra-agent-args` に使う） |
 | 開発チームのモデル | `claude` / `opus` / `high`（エージェント / モデル / effort の順。`dev-team.sh launch` がこの3つを読む。エージェントは claude か codex。codex は試験中で、例は `codex` / `gpt-6.1-sol` / `high`） |
 | 実装する開発者のモデル | Claude Code: 既定（`--model` を付けない。Opus・effort medium）/ Codex: `gpt-6.1-sol`・effort `high`（2026-11-08 に xhigh から下げて試験中。OpenAI は xhigh を特に難しい作業だけに勧めている） |
 | レビューのモデル | Claude Code: `opus`・effort `high` / Codex: `gpt-6.1-sol`・effort `high`（相互レビューと品質レビュー） |
