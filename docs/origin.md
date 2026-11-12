@@ -22,6 +22,7 @@
 - CLAUDE.md・AGENTS.md の「開発設定」の「〜のモデル」の行と、それを読む書き方（dual-implement の「モデルの指定」、`dev-team.sh launch` が「開発チームのモデル」を読み Codex なら `orca agent launch` で起動する処理とそのテスト、doctor の「開発チームのモデル」の点検）
 - README の「始め方」、`docs/workflow.md` の「最初に1回だけやる準備」の準備スキルを使う書き方と、起動係の名前に付けるリポジトリ名
 - Docker を使わないときも worktree ごとにポートを分ける書き方（2026-11-09。「開発設定」の開発サーバーの行、implement-issue 手順4、dual-implement の .env と品質レビュー、setup-project の手順2）
+- 指示文の点検（2026-11-12。Claude Code の prompt-audit の手順で、古い参照・食い違い・重ねた注意を直した。テストの決まりを dual-implement から testing.md に移した）
 - `docs/definition-of-done.md`（完了の定義）と、それを使う implement-issue 手順5・dual-implement の相互レビューと一次判断・setup-project 手順2（2026-11-12。CLAUDE.md の「完了の定義」はこのファイルを指す1行にした。implement-issue 手順5の「PR を作る前に見直す」4点は、この表に移した）
 - `work-times.py` の Orca 1.4.256 への対応（2026-11-10。`--full`・`worker-list --run`・`inbox --terminal run:<Run ID>`）。取り出し元の 494c692 の直し方とは別の形なので、取り出し元へも戻す
 - CLAUDE.md・AGENTS.md の「PO の席でのやり方」と、setup-project 手順9でそれを読む一言（2026-11-10。PO が作るものを自分で作り始め、Issue にしないことが2回続いたため）

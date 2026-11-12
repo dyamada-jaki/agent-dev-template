@@ -1,11 +1,11 @@
 # <プロジェクト名> — エージェント向けガイド
 
 <何を作るかを1〜2行で書く。>
-**仕様はすべて [docs/spec.md](docs/spec.md) にある。作業の前に必ず読むこと。**
+仕様の正本は [docs/spec.md](docs/spec.md)。作業に関係する箇所を読んでから始める。
 
 > このファイルと `AGENTS.md`（Codex 用）は同じ内容に保つ。直したら両方をそろえる。
 
-> **準備がまだなら、まず準備する。** このファイルに `<…>` が残っているあいだは、準備が済んでいない。最初の依頼が何であっても（「セットアップして」「〇〇を作りたい」など）、ほかの作業より先に [`.claude/skills/setup-project/SKILL.md`](.claude/skills/setup-project/SKILL.md) の手順で進める。制作の環境だけを整えて終えず、最後に `bash .claude/skills/dual-implement/scripts/dev-team.sh doctor` を通す。
+> **準備がまだなら、まず準備する。** このファイルの、コードの書式（`…`）の外に `<…>` が残っているあいだは、準備が済んでいない（`dev-team.sh doctor` と同じ判定。開発サーバーのコマンドの `<ポート>` のような、コードの書式の中の `<…>` は埋めなくてよい）。最初の依頼が何であっても（「セットアップして」「〇〇を作りたい」など）、ほかの作業より先に [`.claude/skills/setup-project/SKILL.md`](.claude/skills/setup-project/SKILL.md) の手順で進める。制作の環境だけを整えて終えず、最後に `bash .claude/skills/dual-implement/scripts/dev-team.sh doctor` を通す。
 
 ## 作るもの（既定: Web アプリ）
 このテンプレートの既定は **Web アプリ（Node・Vite・React・TypeScript・Vitest）**。
